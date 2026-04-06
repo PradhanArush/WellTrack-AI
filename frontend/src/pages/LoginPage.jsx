@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/api';
-import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
+import { LogIn, Mail, Lock, AlertCircle, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { DEMO_USER } from '../data/demoData';
 
 const LoginPage = ({ onLogin }) => {
   const [formData, setFormData] = useState({
@@ -26,6 +27,16 @@ const LoginPage = ({ onLogin }) => {
       [e.target.name]: e.target.value,
     });
     setError('');
+  };
+
+  const handleDemo = () => {
+    localStorage.setItem('demo_mode', 'true');
+    localStorage.setItem('access_token', 'demo_token');
+    localStorage.setItem('refresh_token', 'demo_token');
+    localStorage.setItem('user', JSON.stringify(DEMO_USER));
+    onLogin(DEMO_USER, { access: 'demo_token', refresh: 'demo_token' });
+    toast.success('Logged in as Demo User');
+    navigate('/dashboard');
   };
 
   const handleSubmit = async (e) => {
@@ -118,8 +129,22 @@ const LoginPage = ({ onLogin }) => {
             </button>
           </form>
 
+          {/* Demo Account */}
+          <div className="mt-6 p-4 bg-teal-50 border border-teal-100 rounded-xl">
+            <p className="text-xs font-semibold text-teal-600 uppercase tracking-wider mb-2">Try without an account</p>
+            <p className="text-xs text-gray-500 mb-3">Explore the app with sample data — no sign up needed.</p>
+            <button
+              type="button"
+              onClick={handleDemo}
+              className="w-full py-2.5 bg-white border border-teal-300 text-teal-600 rounded-lg hover:bg-teal-50 transition font-medium text-sm flex items-center justify-center gap-2"
+            >
+              <Zap className="w-4 h-4" />
+              Try Demo Account
+            </button>
+          </div>
+
           {/* Footer */}
-          <div className="mt-6 text-center">
+          <div className="mt-4 text-center">
             <p className="text-gray-600">
               Don't have an account?{' '}
               <Link to="/register" className="text-teal-600 hover:text-teal-700 font-medium">

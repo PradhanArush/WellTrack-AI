@@ -1,6 +1,9 @@
 import axios from 'axios';
+import { getDemoResponse } from '../data/demoData';
 
 const API_URL = import.meta.env.VITE_API_URL;
+
+export const isDemoMode = () => localStorage.getItem('demo_mode') === 'true';
 
 // Create axios instance
 const api = axios.create({
@@ -10,18 +13,22 @@ const api = axios.create({
   },
 });
 
-// Add token to requests
+// Add token to requests + demo mode interception
 api.interceptors.request.use(
   (config) => {
+    if (isDemoMode()) {
+      const mockData = getDemoResponse(config.url, config.method);
+      config.adapter = () =>
+        Promise.resolve({ data: mockData, status: 200, statusText: 'OK', headers: {}, config });
+      return config;
+    }
     const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Handle token refresh
