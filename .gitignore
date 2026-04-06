@@ -1,0 +1,41 @@
+# Environment files (secrets - never commit these)
+.env
+*.env
+backend/.env
+frontend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+env/
+*.egg-info/
+dist/
+build/
+*.sqlite3
+
+# Node
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+*.log
+npm-debug.log*
+
+# ML model weights and training dataset (too large for GitHub)
+backend/foodscan/model/*.h5
+backend/foodscan/model/*.keras
+backend/foodscan/dataset/
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+*.docx
+*.zip
