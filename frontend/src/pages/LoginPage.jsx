@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/api';
-import { LogIn, Mail, Lock, AlertCircle, Zap } from 'lucide-react';
+import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { DEMO_USER } from '../data/demoData';
 
+// Login form — handles email/password auth and passes tokens back up to App.jsx via onLogin
 const LoginPage = ({ onLogin }) => {
   const [formData, setFormData] = useState({
     email: '',
@@ -14,6 +14,8 @@ const LoginPage = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // If the api.js interceptor detected an expired session, it sets this flag in sessionStorage
+  // We read it here to show the user a "session expired" toast
   useEffect(() => {
     if (sessionStorage.getItem('session_expired')) {
       sessionStorage.removeItem('session_expired');
@@ -21,22 +23,13 @@ const LoginPage = ({ onLogin }) => {
     }
   }, []);
 
+  // Clears the error message as soon as the user starts typing again
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
     setError('');
-  };
-
-  const handleDemo = () => {
-    localStorage.setItem('demo_mode', 'true');
-    localStorage.setItem('access_token', 'demo_token');
-    localStorage.setItem('refresh_token', 'demo_token');
-    localStorage.setItem('user', JSON.stringify(DEMO_USER));
-    onLogin(DEMO_USER, { access: 'demo_token', refresh: 'demo_token' });
-    toast.success('Logged in as Demo User');
-    navigate('/dashboard');
   };
 
   const handleSubmit = async (e) => {
@@ -47,9 +40,11 @@ const LoginPage = ({ onLogin }) => {
     try {
       const response = await authAPI.login(formData);
       const { access, refresh, user } = response.data;
+      // Pass tokens and user data up to App.jsx which stores them and updates auth state
       onLogin(user, { access, refresh });
       navigate('/dashboard');
     } catch (err) {
+      // Show a specific message based on the HTTP status code
       const status = err.response?.status;
       if (status === 401) {
         setError('No account found with these credentials. Please check your email and password.');
@@ -78,7 +73,7 @@ const LoginPage = ({ onLogin }) => {
             <p className="text-gray-600">Sign in to continue your wellness journey</p>
           </div>
 
-          {/* Error Message */}
+          {/* Inline error message — only shown when there's an error */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -86,7 +81,7 @@ const LoginPage = ({ onLogin }) => {
             </div>
           )}
 
-          {/* Form */}
+          {/* Login form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
@@ -120,6 +115,7 @@ const LoginPage = ({ onLogin }) => {
               </div>
             </div>
 
+            {/* Button is disabled and shows "Signing in..." while the request is in-flight */}
             <button
               type="submit"
               disabled={loading}
@@ -129,22 +125,8 @@ const LoginPage = ({ onLogin }) => {
             </button>
           </form>
 
-          {/* Demo Account */}
-          <div className="mt-6 p-4 bg-teal-50 border border-teal-100 rounded-xl">
-            <p className="text-xs font-semibold text-teal-600 uppercase tracking-wider mb-2">Try without an account</p>
-            <p className="text-xs text-gray-500 mb-3">Explore the app with sample data — no sign up needed.</p>
-            <button
-              type="button"
-              onClick={handleDemo}
-              className="w-full py-2.5 bg-white border border-teal-300 text-teal-600 rounded-lg hover:bg-teal-50 transition font-medium text-sm flex items-center justify-center gap-2"
-            >
-              <Zap className="w-4 h-4" />
-              Try Demo Account
-            </button>
-          </div>
-
-          {/* Footer */}
-          <div className="mt-4 text-center">
+          {/* Footer link to registration */}
+          <div className="mt-6 text-center">
             <p className="text-gray-600">
               Don't have an account?{' '}
               <Link to="/register" className="text-teal-600 hover:text-teal-700 font-medium">

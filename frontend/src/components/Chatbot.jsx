@@ -4,16 +4,19 @@ import api from '../services/api';
 
 const CHATBOT_URL = '/users/chatbot/';
 
+// Floating AI chatbot (Ava) — always visible in the bottom-right corner for logged-in users
 const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  // Conversation history — each message has a role ('user' or 'assistant') and content
   const [messages, setMessages] = useState([
     { role: 'assistant', content: "Hi! I'm Ava, your AI wellness assistant. How can I help you today?" }
   ]);
   const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [isTyping, setIsTyping] = useState(false); // Shows the animated typing indicator
   const messagesEndRef = useRef(null);
 
+  // Auto-scroll to the latest message whenever messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
@@ -28,6 +31,7 @@ const Chatbot = () => {
     setIsTyping(true);
 
     try {
+      // Send the full conversation history to the backend so the AI has context
       const history = updatedMessages.map((msg) => ({
         role: msg.role === 'assistant' ? 'assistant' : 'user',
         content: msg.content,
@@ -47,6 +51,7 @@ const Chatbot = () => {
     }
   };
 
+  // Allow sending with Enter key (Shift+Enter adds a newline instead)
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -56,7 +61,7 @@ const Chatbot = () => {
 
   return (
     <>
-      {/* Chatbot Button */}
+      {/* Toggle button — shows X when open, chat icon when closed */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-teal-500 to-cyan-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center z-50 hover:scale-110"
@@ -65,7 +70,7 @@ const Chatbot = () => {
         {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
       </button>
 
-      {/* Chatbot Window */}
+      {/* Chat window — size changes based on isExpanded (desktop only) */}
       {isOpen && (
         <div
           className="fixed bg-white rounded-xl shadow-2xl flex flex-col z-50 animate-slideUp transition-all duration-300"
@@ -75,7 +80,7 @@ const Chatbot = () => {
               : { bottom: '96px', right: '24px', width: '384px', height: '500px', minWidth: '384px', maxWidth: '384px' }
           }
         >
-          {/* Header */}
+          {/* Header with expand/collapse and close controls */}
           <div className="bg-gradient-to-r from-teal-500 to-cyan-500 text-white p-4 rounded-t-xl flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
@@ -87,9 +92,10 @@ const Chatbot = () => {
               </div>
             </div>
             <div className="flex items-center space-x-1">
+              {/* Expand/minimize only shown on desktop */}
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="p-1 hover:bg-white hover:bg-opacity-20 rounded transition"
+                className="p-1 hover:bg-white hover:bg-opacity-20 rounded transition hidden md:block"
                 aria-label={isExpanded ? 'Minimize chat' : 'Expand chat'}
               >
                 {isExpanded ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
@@ -103,13 +109,14 @@ const Chatbot = () => {
             </div>
           </div>
 
-          {/* Messages */}
+          {/* Scrollable message list */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.map((msg, idx) => (
               <div
                 key={idx}
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
+                {/* User messages are right-aligned with teal gradient; assistant messages are left-aligned gray */}
                 <div
                   className={`max-w-[80%] p-3 rounded-lg break-words overflow-wrap-anywhere ${
                     msg.role === 'user'
@@ -121,6 +128,7 @@ const Chatbot = () => {
                 </div>
               </div>
             ))}
+            {/* Animated typing dots shown while waiting for the AI response */}
             {isTyping && (
               <div className="flex justify-start">
                 <div className="bg-gray-100 text-gray-800 p-3 rounded-lg">
@@ -132,10 +140,11 @@ const Chatbot = () => {
                 </div>
               </div>
             )}
+            {/* Invisible element at the bottom — scrolled into view to keep latest message visible */}
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
+          {/* Input area */}
           <div className="p-4 border-t overflow-hidden">
             <div className="flex space-x-2 min-w-0">
               <input
@@ -146,6 +155,7 @@ const Chatbot = () => {
                 placeholder="Type your message..."
                 className="flex-1 min-w-0 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
               />
+              {/* Send button disabled when input is empty */}
               <button
                 onClick={handleSend}
                 disabled={!input.trim()}
@@ -158,6 +168,7 @@ const Chatbot = () => {
         </div>
       )}
 
+      {/* Slide-up animation for the chat window */}
       <style>{`
         @keyframes slideUp {
           from {

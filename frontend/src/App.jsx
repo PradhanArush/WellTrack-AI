@@ -13,15 +13,17 @@ import DashboardPage from './pages/DashboardPage';
 import ScanFoodPage from './pages/ScanFoodPage';
 import Chatbot from './components/Chatbot';
 
+// Root component — manages global auth state and defines all routes
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Prevents flash of wrong page on first load
 
+  // On mount, check localStorage for an existing session so the user stays logged in on refresh
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     const savedUser = localStorage.getItem('user');
-    
+
     if (token && savedUser) {
       setIsAuthenticated(true);
       setUser(JSON.parse(savedUser));
@@ -29,6 +31,7 @@ function App() {
     setLoading(false);
   }, []);
 
+  // Called after a successful login or registration — persists tokens and user to localStorage
   const handleLogin = (userData, tokens) => {
     localStorage.setItem('access_token', tokens.access);
     localStorage.setItem('refresh_token', tokens.refresh);
@@ -37,15 +40,16 @@ function App() {
     setUser(userData);
   };
 
+  // Clears all stored tokens and user data, then resets auth state
   const handleLogout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
-    localStorage.removeItem('demo_mode');
     setIsAuthenticated(false);
     setUser(null);
   };
 
+  // Show nothing until we've checked localStorage — prevents wrong redirect on first render
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-white to-cyan-50">
@@ -58,8 +62,9 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50">
         <Navbar isAuthenticated={isAuthenticated} user={user} onLogout={handleLogout} />
-        
+
         <Routes>
+          {/* Redirect logged-in users away from the home/login/register pages */}
           <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <HomePage isAuthenticated={isAuthenticated} />} />
           <Route path="/dashboard" element={isAuthenticated ? <DashboardPage user={user} /> : <Navigate to="/login" />} />
           <Route
@@ -74,23 +79,24 @@ function App() {
               isAuthenticated ? <Navigate to="/dashboard" /> : <RegisterPage onLogin={handleLogin} />
             }
           />
-          <Route 
-            path="/nutrition" 
+          {/* Protected routes — redirect to /login if not authenticated */}
+          <Route
+            path="/nutrition"
             element={
               isAuthenticated ? <NutritionPage /> : <Navigate to="/login" />
-            } 
+            }
           />
-          <Route 
-            path="/activity" 
+          <Route
+            path="/activity"
             element={
               isAuthenticated ? <ActivityPage /> : <Navigate to="/login" />
-            } 
+            }
           />
-          <Route 
-            path="/sleep" 
+          <Route
+            path="/sleep"
             element={
               isAuthenticated ? <SleepPage /> : <Navigate to="/login" />
-            } 
+            }
           />
           <Route
             path="/scan"
@@ -106,7 +112,9 @@ function App() {
           />
         </Routes>
 
+        {/* Chatbot floats over all pages — only shown when logged in */}
         {isAuthenticated && <Chatbot />}
+        {/* Global toast notification system — shows success/error messages app-wide */}
         <Toaster position="bottom-right" toastOptions={{ duration: 3000 }} />
       </div>
     </Router>

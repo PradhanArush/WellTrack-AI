@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
+// ComposedChart lets us overlay a Bar chart (duration) and a Line chart (quality) on the same axes
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { sleepAPI } from '../services/api';
 import { Plus, Moon, Activity, Target, TrendingUp, Trash2, X, Clock, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 
 const SleepPage = () => {
-  const { state } = useLocation();
+  const { state } = useLocation(); // Receives openModal:true from Dashboard quick actions
   const [sleepLogs, setSleepLogs] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [chartData, setChartData] = useState([]);
+  const [summary, setSummary] = useState(null);   // Weekly stats (avg duration, quality, trend)
+  const [chartData, setChartData] = useState([]); // Last 7 logs formatted for Recharts
   const [showAddSleep, setShowAddSleep] = useState(state?.openModal === true);
   const [deleteLogId, setDeleteLogId] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
 
+  // Re-fetch whenever the selected date changes
   useEffect(() => {
     fetchData();
   }, [selectedDate]);
@@ -22,15 +24,17 @@ const SleepPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Fetch filtered logs (for display), weekly summary, and all logs (for the chart) in parallel
       const [logsRes, summaryRes, allLogsRes] = await Promise.all([
         sleepAPI.getSleepLogs(selectedDate),
         sleepAPI.getWeeklySummary(),
-        sleepAPI.getSleepLogs(),
+        sleepAPI.getSleepLogs(), // No date filter = returns all logs
       ]);
       setSleepLogs(logsRes.data);
       setSummary(summaryRes.data);
+      // Take the 7 most recent logs and reverse so the chart shows oldest → newest left to right
       const recent7 = allLogsRes.data.slice(0, 7).reverse().map((log) => ({
-        date: log.date.slice(5),
+        date: log.date.slice(5), // Show only MM-DD for readability on the x-axis
         Duration: parseFloat(parseFloat(log.duration_hours).toFixed(1)),
         Quality: log.quality,
       }));
@@ -77,6 +81,7 @@ const SleepPage = () => {
             onChange={(e) => setSelectedDate(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
           />
+          {/* Log Sleep button is disabled if sleep is already logged for the selected date */}
           <button
             onClick={() => setShowAddSleep(true)}
             disabled={
@@ -92,7 +97,7 @@ const SleepPage = () => {
         </div>
       </div>
 
-      {/* Sleep Stats */}
+      {/* Weekly stats summary cards */}
       <div className="grid md:grid-cols-3 gap-6 mb-8">
         <div className="bg-gradient-to-br from-indigo-400 to-purple-500 p-6 rounded-xl shadow-lg text-white">
           <Moon className="w-10 h-10 mb-3 opacity-80" />
@@ -111,7 +116,7 @@ const SleepPage = () => {
         </div>
       </div>
 
-      {/* Trend Info */}
+      {/* Weekly trend cards — improving/declining/stable labels come from the backend */}
       {summary && summary.quality_trend && (
         <div className="bg-white rounded-xl shadow-md p-6 mb-8">
           <h3 className="text-lg font-bold text-gray-800 mb-4">Weekly Trends</h3>
@@ -135,10 +140,11 @@ const SleepPage = () => {
         </div>
       )}
 
-      {/* 7-Day Sleep Chart */}
+      {/* 7-day chart — only shown when there are at least 2 data points */}
       {chartData.length > 1 && (
         <div className="bg-white rounded-xl shadow-md p-6 mb-8">
           <h3 className="text-lg font-bold text-gray-800 mb-4">7-Day Sleep Trend</h3>
+          {/* ComposedChart: bars show sleep duration (left Y axis), line shows quality (right Y axis) */}
           <ResponsiveContainer width="100%" height={220}>
             <ComposedChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -154,7 +160,7 @@ const SleepPage = () => {
         </div>
       )}
 
-      {/* Sleep Log */}
+      {/* Sleep log list for the selected date */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <h2 className="text-xl font-bold text-gray-800 mb-4">Sleep History</h2>
         {sleepLogs.length === 0 ? (
@@ -171,7 +177,7 @@ const SleepPage = () => {
         )}
       </div>
 
-      {/* Add Sleep Modal */}
+      {/* Add sleep modal */}
       {showAddSleep && (
         <AddSleepModal
           onClose={() => setShowAddSleep(false)}
@@ -180,7 +186,7 @@ const SleepPage = () => {
         />
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete confirmation modal */}
       {deleteLogId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeleteLogId(null)} />
@@ -205,6 +211,7 @@ const SleepPage = () => {
   );
 };
 
+// Displays improving/declining/stable trend with colour-coded badge
 const TrendCard = ({ label, value, icon: Icon }) => {
   const getTrendColor = (trend) => {
     if (trend === 'improving') return 'text-green-600 bg-green-50';
@@ -232,9 +239,11 @@ const TrendCard = ({ label, value, icon: Icon }) => {
   );
 };
 
+// Single sleep log entry with quality badge, info grid, lifestyle factors, and expandable notes
 const SleepItem = ({ log, onDelete }) => {
   const [noteOpen, setNoteOpen] = useState(false);
 
+  // Colour-code the quality badge based on score
   const qualityColor =
     log.quality >= 8 ? 'bg-green-100 text-green-700'
     : log.quality >= 6 ? 'bg-yellow-100 text-yellow-700'
@@ -247,6 +256,7 @@ const SleepItem = ({ log, onDelete }) => {
     : log.quality >= 3 ? 'Poor'
     : 'Very Poor';
 
+  // Build list of lifestyle factors that were checked (only show the ones that are true)
   const factors = [
     log.had_caffeine && '☕ Caffeine',
     log.had_alcohol && '🍷 Alcohol',
@@ -301,7 +311,7 @@ const SleepItem = ({ log, onDelete }) => {
         )}
       </div>
 
-      {/* Factors */}
+      {/* Lifestyle factors — caffeine, alcohol, exercise, stress */}
       {factors.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
           {factors.map((f) => (
@@ -310,7 +320,7 @@ const SleepItem = ({ log, onDelete }) => {
         </div>
       )}
 
-      {/* Note */}
+      {/* Expandable notes */}
       {noteOpen && log.notes && (
         <div className="mt-3 p-3 bg-white border border-teal-100 rounded-lg text-sm text-gray-600">
           {log.notes}
@@ -328,6 +338,7 @@ const InfoBadge = ({ icon, label, value }) => (
   </div>
 );
 
+// Modal form for logging a sleep entry
 const AddSleepModal = ({ onClose, onSuccess, selectedDate }) => {
   const [formData, setFormData] = useState({
     date: selectedDate,
@@ -345,20 +356,22 @@ const AddSleepModal = ({ onClose, onSuccess, selectedDate }) => {
   });
   const [loading, setLoading] = useState(false);
 
+  // Automatically calculates sleep duration whenever bedtime or wake time changes
   const calculateDuration = () => {
     if (formData.bedtime && formData.wake_time) {
       const [bedHour, bedMin] = formData.bedtime.split(':').map(Number);
       const [wakeHour, wakeMin] = formData.wake_time.split(':').map(Number);
-      
+
       let hours = wakeHour - bedHour;
       let minutes = wakeMin - bedMin;
-      
+
+      // Handle crossing midnight (e.g., bedtime 23:00, wake time 07:00)
       if (hours < 0) hours += 24;
       if (minutes < 0) {
         hours -= 1;
         minutes += 60;
       }
-      
+
       const duration = hours + minutes / 60;
       setFormData({ ...formData, duration_hours: parseFloat(duration.toFixed(1)) });
     }
@@ -373,6 +386,7 @@ const AddSleepModal = ({ onClose, onSuccess, selectedDate }) => {
     setLoading(true);
     try {
       const dataToSend = { ...formData };
+      // Remove optional field if empty so the backend doesn't receive an empty string
       if (!dataToSend.fell_asleep_minutes) delete dataToSend.fell_asleep_minutes;
       await sleepAPI.createSleepLog(dataToSend);
       toast.success('Sleep log saved');
@@ -427,6 +441,7 @@ const AddSleepModal = ({ onClose, onSuccess, selectedDate }) => {
             />
           </div>
 
+          {/* Quality slider — 1 (poor) to 10 (excellent), user drags to rate their sleep */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Sleep Quality: {formData.quality}/10
@@ -470,6 +485,7 @@ const AddSleepModal = ({ onClose, onSuccess, selectedDate }) => {
             </div>
           </div>
 
+          {/* Lifestyle factor checkboxes — stored as booleans and displayed on the log card */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Factors</label>
             <div className="grid grid-cols-2 gap-3">

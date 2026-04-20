@@ -3,10 +3,12 @@ import toast from 'react-hot-toast';
 import { authAPI } from '../services/api';
 import { User, Mail, Calendar, Ruler, Scale, Edit2, Save, X, Trash2, Lock } from 'lucide-react';
 
+// Profile page — view/edit personal info, set nutrition goals, and delete account
+// setUser propagates changes back to App.jsx so the Navbar reflects the updated name
 const ProfilePage = ({ user, setUser, onLogout }) => {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false); // Toggles all form fields between read-only and editable
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deletePassword, setDeletePassword] = useState('');
+  const [deletePassword, setDeletePassword] = useState(''); // Password required to confirm account deletion
   const [deleteError, setDeleteError] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -57,6 +59,7 @@ const ProfilePage = ({ user, setUser, onLogout }) => {
     setLoading(true);
 
     try {
+      // Convert empty strings to null for optional numeric/date fields before sending to backend
       const payload = {
         ...formData,
         date_of_birth: formData.date_of_birth || null,
@@ -65,6 +68,7 @@ const ProfilePage = ({ user, setUser, onLogout }) => {
         gender: formData.gender || '',
       };
       const response = await authAPI.updateProfile(payload);
+      // Update both App.jsx state and localStorage so the navbar shows the new name immediately
       setUser(response.data);
       localStorage.setItem('user', JSON.stringify(response.data));
       toast.success('Profile updated successfully');
@@ -76,6 +80,7 @@ const ProfilePage = ({ user, setUser, onLogout }) => {
     }
   };
 
+  // Account deletion requires password confirmation — on success, calls onLogout to clear state and redirect
   const handleDeleteAccount = async () => {
     if (!deletePassword) { setDeleteError('Please enter your password.'); return; }
     setDeleteLoading(true);

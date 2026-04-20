@@ -6,35 +6,39 @@ import { nutritionAPI, authAPI } from '../services/api';
 import { Flame, Target, TrendingUp, Droplet, Apple, Trash2, Zap, PenLine, Droplets, X } from 'lucide-react';
 import { FOODS, calculateNutrients } from '../data/foodData';
 
+// Nutrition page — meals, macro summary, bar chart, and hydration tracker all in one
 const NutritionPage = () => {
+  // state?.openModal is passed by Quick Actions on the Dashboard to auto-open the add form
   const { state } = useLocation();
   const [meals, setMeals] = useState([]);
-  const [summary, setSummary] = useState(null);
+  const [summary, setSummary] = useState(null); // Daily totals: calories, protein, carbs, fats, fiber
   const [showQuickAdd, setShowQuickAdd] = useState(state?.openModal === true);
   const [showManualAdd, setShowManualAdd] = useState(false);
-  const [deleteMealId, setDeleteMealId] = useState(null);
+  const [deleteMealId, setDeleteMealId] = useState(null); // Stores id of meal pending deletion
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
 
   const today = new Date().toISOString().split('T')[0];
-  const isFutureDate = selectedDate > today;
+  const isFutureDate = selectedDate > today; // Blocks logging for future dates
 
-  // User goals from profile
+  // Loaded from the user's profile — used by NutritionCard progress bars
   const [userGoals, setUserGoals] = useState({ calories: 2000, protein: 150, carbs: 250, fiber: 30, fats: 65 });
 
-  // Hydration state
+  // Hydration tracking state
   const [waterLogs, setWaterLogs] = useState([]);
   const [waterGoal, setWaterGoal] = useState(2000);
   const [showGoalEdit, setShowGoalEdit] = useState(false);
   const [newGoalInput, setNewGoalInput] = useState('');
   const [customWaterMl, setCustomWaterMl] = useState('');
 
+  // Re-fetch all data whenever the selected date changes
   useEffect(() => {
     fetchData();
     fetchWaterData();
     fetchUserGoal();
   }, [selectedDate]);
 
+  // Fetches meals and daily summary together in parallel
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -126,6 +130,7 @@ const NutritionPage = () => {
     }
   };
 
+  // Computed totals for the hydration progress bar
   const totalWaterMl = waterLogs.reduce((sum, log) => sum + log.amount_ml, 0);
   const waterPercent = Math.min((totalWaterMl / waterGoal) * 100, 100);
 

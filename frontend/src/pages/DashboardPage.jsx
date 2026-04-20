@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Apple, Activity, Moon, TrendingUp, Droplets, Flame, Heart, Target, Pencil, X, Check } from 'lucide-react';
 import { nutritionAPI, sleepAPI, authAPI, activityAPI } from '../services/api';
 
+// 20 rotating wellness tips — 4 random ones are shown each time the dashboard loads
 const ALL_TIPS = [
   "Drinking water before meals can help with portion control and digestion.",
   "Aim for at least 7–9 hours of sleep each night for optimal recovery.",
@@ -26,11 +27,13 @@ const ALL_TIPS = [
   "Spending time outdoors in sunlight supports vitamin D production and mood.",
 ];
 
+// Randomly picks 4 tips from the full list each render
 const getRandomTips = () => {
   const shuffled = [...ALL_TIPS].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, 4);
 };
 
+// Returns a time-of-day greeting based on the current hour
 const getGreeting = () => {
   const h = new Date().getHours();
   if (h < 12) return 'Good morning';
@@ -40,7 +43,7 @@ const getGreeting = () => {
 
 const today = new Date().toISOString().split('T')[0];
 
-// ─── All available metric definitions ─────────────────────────────────────────
+// Full list of available dashboard metrics — each has a unique id, icon, and colour theme
 const ALL_METRICS = [
   {
     id: 'calories',
@@ -108,19 +111,21 @@ const ALL_METRICS = [
   },
 ];
 
-const DEFAULT_WIDGETS = ['calories', 'water', 'sleep'];
-const MAX_WIDGETS = 3;
+const DEFAULT_WIDGETS = ['calories', 'water', 'sleep']; // Shown until the user customizes
+const MAX_WIDGETS = 3; // Dashboard only shows 3 metrics at a time
 
 const DashboardPage = ({ user }) => {
+  // Extract first name for the greeting
   const name = user?.full_name?.split(' ')[0] || user?.username || 'there';
   const dailyTips = getRandomTips();
 
-  // ── Data state ──────────────────────────────────────────────────────────────
+  // Read the calories burned goal from localStorage (set on ActivityPage)
   const calsBurnedGoal = (() => {
     const saved = parseInt(localStorage.getItem('calories_burned_daily_goal'), 10);
     return isNaN(saved) ? 500 : saved;
   })();
 
+  // All metric values loaded from the backend
   const [data, setData] = useState({
     calories: { consumed: 0, goal: 2000 },
     water: { consumed: 0, goal: 2000 },
@@ -133,13 +138,14 @@ const DashboardPage = ({ user }) => {
   });
   const [loading, setLoading] = useState(true);
 
-  // ── Widget selection state (persisted to backend) ───────────────────────────
+  // Which 3 widgets the user has chosen — persisted to their profile on the backend
   const [selectedWidgets, setSelectedWidgets] = useState(DEFAULT_WIDGETS);
 
+  // Edit mode state — pendingWidgets holds the in-progress selection before the user saves
   const [editMode, setEditMode] = useState(false);
   const [pendingWidgets, setPendingWidgets] = useState([]);
 
-  // ── Fetch all data ──────────────────────────────────────────────────────────
+  // Fetch all data in parallel using Promise.all for efficiency
   useEffect(() => {
     const fetchAll = async () => {
       try {
@@ -157,6 +163,7 @@ const DashboardPage = ({ user }) => {
         const sleepLogs = sleepRes.data;
         const activities = activitiesRes.data;
 
+        // Compute aggregates from the raw arrays
         const totalWater = waterLogs.reduce((sum, l) => sum + (l.amount_ml || 0), 0);
         const todaySleep = sleepLogs.find((l) => l.date === today);
         const totalBurned = activities.reduce((sum, a) => sum + (a.calories_burned || 0), 0);
@@ -196,6 +203,7 @@ const DashboardPage = ({ user }) => {
           },
         });
 
+        // Load saved widget preferences from the user's profile if they exist
         if (Array.isArray(profile.dashboard_widgets) && profile.dashboard_widgets.length > 0) {
           setSelectedWidgets(profile.dashboard_widgets.slice(0, MAX_WIDGETS));
         }
@@ -209,7 +217,7 @@ const DashboardPage = ({ user }) => {
     fetchAll();
   }, []);
 
-  // ── Derived metric display values ───────────────────────────────────────────
+  // Converts the raw data state into display-ready strings and a percentage for progress bars
   const getMetricProps = (id) => {
     switch (id) {
       case 'calories':
@@ -267,12 +275,13 @@ const DashboardPage = ({ user }) => {
     }
   };
 
-  // ── Edit modal handlers ──────────────────────────────────────────────────────
+  // Opens the widget customisation modal and pre-fills with current selections
   const openEdit = () => {
     setPendingWidgets([...selectedWidgets]);
     setEditMode(true);
   };
 
+  // Toggles a metric in/out of the pending selection, capped at MAX_WIDGETS
   const togglePending = (id) => {
     setPendingWidgets((prev) => {
       if (prev.includes(id)) return prev.filter((w) => w !== id);
@@ -281,6 +290,7 @@ const DashboardPage = ({ user }) => {
     });
   };
 
+  // Applies the new widget selection and saves it to the backend profile
   const saveWidgets = async () => {
     setSelectedWidgets(pendingWidgets);
     setEditMode(false);
@@ -296,7 +306,7 @@ const DashboardPage = ({ user }) => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
 
-      {/* Welcome */}
+      {/* Personalised greeting with time-of-day text */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800">
           {getGreeting()},{' '}
@@ -307,7 +317,7 @@ const DashboardPage = ({ user }) => {
         <p className="text-gray-500 mt-1">Here's your wellness summary for today.</p>
       </div>
 
-      {/* Today's Stats — customisable */}
+      {/* Customisable stat cards — user picks up to 3 metrics to show here */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-700">Today's Stats</h2>
@@ -342,7 +352,7 @@ const DashboardPage = ({ user }) => {
         </div>
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Action links — pass openModal:true so each page opens its log form immediately */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold text-gray-700 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -370,7 +380,7 @@ const DashboardPage = ({ user }) => {
         </div>
       </div>
 
-      {/* Progress + Tips */}
+      {/* Bottom two-column layout: progress bars on the left, wellness tips on the right */}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-white rounded-2xl shadow-md p-6">
           <div className="flex items-center space-x-2 mb-4">
@@ -401,7 +411,7 @@ const DashboardPage = ({ user }) => {
       </div>
 
 
-      {/* Edit Modal */}
+      {/* Widget customisation modal — lets users choose which 3 metrics to display */}
       {editMode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
@@ -419,6 +429,7 @@ const DashboardPage = ({ user }) => {
             <div className="space-y-2 mb-6">
               {ALL_METRICS.map((metric) => {
                 const isSelected = pendingWidgets.includes(metric.id);
+                // Disable unselected items once 3 have been chosen
                 const isDisabled = !isSelected && pendingWidgets.length >= MAX_WIDGETS;
                 return (
                   <button
@@ -470,6 +481,7 @@ const DashboardPage = ({ user }) => {
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
+// Single metric card with a skeleton loader while data is being fetched
 const StatCard = ({ icon, label, loading, value, sub, percent, barColor, border }) => (
   <div className={`bg-white rounded-2xl shadow-md p-5 border ${border}`}>
     <div className="flex items-center space-x-2 mb-2">
@@ -477,11 +489,13 @@ const StatCard = ({ icon, label, loading, value, sub, percent, barColor, border 
       <span className="text-sm text-gray-500">{label}</span>
     </div>
     {loading ? (
+      // Pulsing placeholder shown while the API call is in progress
       <div className="h-8 w-24 bg-gray-100 rounded animate-pulse mt-1 mb-3" />
     ) : (
       <div className="text-2xl font-bold text-gray-800 mb-1">{value}</div>
     )}
     <div className="text-xs text-gray-400 mb-3">{sub}</div>
+    {/* Progress bar capped at 100% */}
     <div className="w-full bg-gray-100 rounded-full h-1.5">
       <div
         className={`${barColor} h-1.5 rounded-full transition-all duration-500`}
@@ -492,6 +506,7 @@ const StatCard = ({ icon, label, loading, value, sub, percent, barColor, border 
   </div>
 );
 
+// Quick action card — uses React Router's Link state to tell the destination page to open its modal
 const QuickAction = ({ to, icon, title, desc, gradient }) => (
   <Link
     to={to}
@@ -506,6 +521,7 @@ const QuickAction = ({ to, icon, title, desc, gradient }) => (
   </Link>
 );
 
+// Horizontal progress bar used in the "Today's Progress" section
 const ProgressBar = ({ label, percent, color }) => (
   <div>
     <div className="flex justify-between text-sm text-gray-600 mb-1">
@@ -518,6 +534,7 @@ const ProgressBar = ({ label, percent, color }) => (
   </div>
 );
 
+// Individual wellness tip bullet point
 const Tip = ({ text }) => (
   <div className="flex items-start space-x-2 text-sm text-gray-600">
     <span className="mt-1 w-2 h-2 rounded-full bg-teal-400 shrink-0" />

@@ -4,17 +4,20 @@ import toast from 'react-hot-toast';
 import { activityAPI } from '../services/api';
 import { Plus, Activity as ActivityIcon, Clock, Flame, Trash2, FileText, ChevronDown, ChevronUp, Zap, MapPin, Pencil, Check, X } from 'lucide-react';
 
+// Key used to persist the calories burned goal in localStorage
 const CALORIES_GOAL_KEY = 'calories_burned_daily_goal';
 const DEFAULT_CALORIES_GOAL = 500;
 
 const ActivityPage = () => {
+  // state?.openModal is set by the Quick Actions button on DashboardPage
   const { state } = useLocation();
   const [activities, setActivities] = useState([]);
   const [showAddActivity, setShowAddActivity] = useState(state?.openModal === true);
-  const [deleteActivityId, setDeleteActivityId] = useState(null);
+  const [deleteActivityId, setDeleteActivityId] = useState(null); // Stores the id of the activity to confirm-delete
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
 
+  // Calories burned goal is stored in localStorage so it persists between sessions
   const [calsBurnedGoal, setCalsBurnedGoal] = useState(() => {
     const saved = parseInt(localStorage.getItem(CALORIES_GOAL_KEY), 10);
     return isNaN(saved) ? DEFAULT_CALORIES_GOAL : saved;
@@ -22,6 +25,7 @@ const ActivityPage = () => {
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState('');
 
+  // Re-fetch activities whenever the selected date changes
   useEffect(() => {
     fetchData();
   }, [selectedDate]);
@@ -42,18 +46,20 @@ const ActivityPage = () => {
     try {
       await activityAPI.deleteActivity(deleteActivityId);
       setDeleteActivityId(null);
-      fetchData();
+      fetchData(); // Refresh list after deletion
       toast.success('Activity deleted');
     } catch (error) {
       toast.error('Failed to delete activity');
     }
   };
 
+  // Pre-fills the goal input with the current value before opening the edit modal
   const openGoalEdit = () => {
     setGoalInput(String(calsBurnedGoal));
     setEditingGoal(true);
   };
 
+  // Saves the new goal to state and localStorage (shared with DashboardPage)
   const saveGoal = () => {
     const val = parseInt(goalInput, 10);
     if (!isNaN(val) && val > 0) {
@@ -82,6 +88,7 @@ const ActivityPage = () => {
           <p className="text-gray-600 mt-1">Track your workouts and stay active</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
+          {/* Date picker — capped at today to prevent logging future activities */}
           <input
             type="date"
             value={selectedDate}
@@ -100,7 +107,7 @@ const ActivityPage = () => {
         </div>
       </div>
 
-      {/* Daily Stats */}
+      {/* Daily summary cards — totals computed from the activities array */}
       <div className="grid md:grid-cols-3 gap-6 mb-8">
         <div className="bg-gradient-to-br from-teal-400 to-cyan-500 p-6 rounded-xl shadow-lg text-white">
           <ActivityIcon className="w-10 h-10 mb-3 opacity-80" />
@@ -109,6 +116,7 @@ const ActivityPage = () => {
         </div>
         <div className="bg-gradient-to-br from-blue-400 to-indigo-500 p-6 rounded-xl shadow-lg text-white">
           <Clock className="w-10 h-10 mb-3 opacity-80" />
+          {/* Sum of duration_minutes across all logged activities */}
           <div className="text-3xl font-bold mb-1">
             {activities.reduce((sum, a) => sum + (a.duration_minutes || 0), 0)}
           </div>
@@ -125,12 +133,12 @@ const ActivityPage = () => {
               Set target
             </button>
           </div>
+          {/* Shows calories burned vs the user's goal with a mini progress bar */}
           <div className="text-3xl font-bold mb-1">
             {activities.reduce((sum, a) => sum + (a.calories_burned || 0), 0)}
             <span className="text-lg font-normal opacity-70"> / {calsBurnedGoal}</span>
           </div>
           <div className="text-orange-100 text-sm">Calories Burned Today</div>
-          {/* Mini progress bar */}
           <div className="mt-3 w-full bg-white/20 rounded-full h-1.5">
             <div
               className="bg-white h-1.5 rounded-full transition-all duration-500"
@@ -147,7 +155,7 @@ const ActivityPage = () => {
         </div>
       </div>
 
-      {/* Activities List */}
+      {/* Activities list — empty state shown when no activities have been logged */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <h2 className="text-xl font-bold text-gray-800 mb-4">Recent Activities</h2>
         {activities.length === 0 ? (
@@ -164,7 +172,7 @@ const ActivityPage = () => {
         )}
       </div>
 
-      {/* Edit Calories Goal Modal */}
+      {/* Edit calories goal modal */}
       {editingGoal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
@@ -209,7 +217,7 @@ const ActivityPage = () => {
         </div>
       )}
 
-      {/* Add Activity Modal */}
+      {/* Add Activity modal — closed after a successful submission, then list is refreshed */}
       {showAddActivity && (
         <AddActivityModal
           onClose={() => setShowAddActivity(false)}
@@ -218,7 +226,7 @@ const ActivityPage = () => {
         />
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete confirmation modal — requires explicit confirmation before removing an activity */}
       {deleteActivityId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeleteActivityId(null)} />
@@ -243,6 +251,7 @@ const ActivityPage = () => {
   );
 };
 
+// Emoji icons mapped to each activity type for visual identification
 const ICONS = {
   weight_training: '🏋️',
   running: '🏃',
@@ -253,15 +262,18 @@ const ICONS = {
   other: '💪',
 };
 
+// Colour-coded intensity badge styles
 const INTENSITY_COLORS = {
   low: 'bg-green-100 text-green-700',
   moderate: 'bg-yellow-100 text-yellow-700',
   high: 'bg-red-100 text-red-700',
 };
 
+// Single row in the activities list — shows details and supports an expandable notes section
 const ActivityItem = ({ activity, onDelete }) => {
   const [noteOpen, setNoteOpen] = useState(false);
 
+  // Convert snake_case activity type to Title Case for display
   const typeLabel = activity.activity_type
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -286,6 +298,7 @@ const ActivityItem = ({ activity, onDelete }) => {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {/* Notes toggle button — only shown when the activity has notes */}
           {activity.notes && (
             <button
               onClick={() => setNoteOpen(!noteOpen)}
@@ -302,7 +315,7 @@ const ActivityItem = ({ activity, onDelete }) => {
         </div>
       </div>
 
-      {/* Info grid */}
+      {/* Info grid — distance is optional and only shown when present */}
       <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
         <InfoBadge icon={<Clock className="w-3.5 h-3.5" />} label="Start" value={activity.start_time?.slice(0, 5)} />
         <InfoBadge icon={<Clock className="w-3.5 h-3.5" />} label="Duration" value={`${activity.duration_minutes} min`} />
@@ -312,7 +325,7 @@ const ActivityItem = ({ activity, onDelete }) => {
         )}
       </div>
 
-      {/* Note expand */}
+      {/* Expandable notes section */}
       {noteOpen && activity.notes && (
         <div className="mt-3 p-3 bg-white border border-teal-100 rounded-lg text-sm text-gray-600">
           {activity.notes}
@@ -322,6 +335,7 @@ const ActivityItem = ({ activity, onDelete }) => {
   );
 };
 
+// Small label+value chip used in the info grid
 const InfoBadge = ({ icon, label, value }) => (
   <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg text-xs text-gray-600 border border-gray-100">
     {icon}
@@ -330,12 +344,13 @@ const InfoBadge = ({ icon, label, value }) => (
   </div>
 );
 
+// Modal form for logging a new activity — all fields map directly to the backend model
 const AddActivityModal = ({ onClose, onSuccess, selectedDate }) => {
   const [formData, setFormData] = useState({
     activity_type: 'weight_training',
     title: '',
     date: selectedDate,
-    start_time: new Date().toTimeString().slice(0, 5),
+    start_time: new Date().toTimeString().slice(0, 5), // Defaults to current time
     duration_minutes: '',
     calories_burned: '',
     distance_km: '',
@@ -349,6 +364,7 @@ const AddActivityModal = ({ onClose, onSuccess, selectedDate }) => {
     setLoading(true);
     try {
       const dataToSend = { ...formData };
+      // Remove distance_km if empty so the backend doesn't receive an empty string
       if (!dataToSend.distance_km) delete dataToSend.distance_km;
       await activityAPI.createActivity(dataToSend);
       toast.success('Activity logged');

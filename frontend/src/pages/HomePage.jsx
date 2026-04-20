@@ -1,7 +1,8 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
-import { Apple, Activity, Moon, Target, Zap, Camera, MessageCircle, ClipboardList, Star } from 'lucide-react';
+import { Apple, Activity, Moon, Target, Zap, Camera, MessageCircle, ClipboardList } from 'lucide-react';
 
+// Public landing page — shown to users who are not logged in
+// isAuthenticated is used to hide the CTA buttons once the user is already signed in
 const HomePage = ({ isAuthenticated }) => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-16">

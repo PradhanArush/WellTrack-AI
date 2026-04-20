@@ -4,9 +4,11 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { nutritionAPI } from '../services/api';
 
+// Falls back to localhost if the env variable isn't set
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
-// Nutritional values per 100g for the 10 scannable foods
+// Nutritional values per 100g for each of the 10 supported foods
+// These are used to calculate nutrients for any serving size the user enters
 const SCAN_FOODS = {
   avocado_toast:         { name: 'Avocado Toast',          emoji: '🥑', calories: 200, protein: 5.0,  carbs: 20.0, fiber: 5.0,  fats: 11.0 },
   boiled_eggs:           { name: 'Boiled Eggs',            emoji: '🥚', calories: 155, protein: 13.0, carbs: 1.1,  fiber: 0.0,  fats: 11.0 },
@@ -20,6 +22,7 @@ const SCAN_FOODS = {
   pancakes:              { name: 'Pancakes',               emoji: '🥞', calories: 227, protein: 6.0,  carbs: 38.0, fiber: 1.0,  fats: 6.0  },
 };
 
+// Scales per-100g values to the user's actual serving size
 const calculateNutrients = (food, grams) => {
   const r = grams / 100;
   return {
@@ -31,6 +34,7 @@ const calculateNutrients = (food, grams) => {
   };
 };
 
+// Mini progress bar used in the nutrients breakdown section
 const NutrientBar = ({ label, value, unit, color, max }) => {
   const pct = Math.min((value / max) * 100, 100);
   return (
@@ -47,26 +51,28 @@ const NutrientBar = ({ label, value, unit, color, max }) => {
 };
 
 const ScanFoodPage = () => {
-  const [image, setImage] = useState(null);
-  const [imageFile, setImageFile] = useState(null);
+  const [image, setImage] = useState(null);       // Object URL for previewing the selected image
+  const [imageFile, setImageFile] = useState(null); // The actual File object sent to the backend
   const [scanning, setScanning] = useState(false);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(null);     // { food_id, food, nutrients, confidence }
   const [error, setError] = useState(null);
-  const [grams, setGrams] = useState(100);
-  const [showMealPicker, setShowMealPicker] = useState(false);
+  const [grams, setGrams] = useState(100);        // Serving size — updates nutrient values in real time
+  const [showMealPicker, setShowMealPicker] = useState(false); // Meal type selection step
   const [logging, setLogging] = useState(false);
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef(null); // Used to programmatically open the file browser
 
+  // Handles file selection via the file input
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) { setError('Please upload an image file.'); return; }
     setImageFile(file);
-    setImage(URL.createObjectURL(file));
+    setImage(URL.createObjectURL(file)); // Creates a local URL for the preview
     setResult(null);
     setError(null);
   };
 
+  // Handles drag-and-drop file upload
   const handleDrop = (e) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
@@ -77,6 +83,8 @@ const ScanFoodPage = () => {
     setError(null);
   };
 
+  // Sends the image to the backend AI endpoint for food recognition
+  // The backend returns a food_id which we look up in SCAN_FOODS for nutrition data
   const handleScan = async () => {
     if (!imageFile) return;
     setScanning(true);
@@ -87,6 +95,7 @@ const ScanFoodPage = () => {
       const formData = new FormData();
       formData.append('image', imageFile);
 
+      // Use raw axios here (not the api instance) because multipart/form-data needs a different Content-Type
       const token = localStorage.getItem('access_token');
       const response = await axios.post(`${API_BASE}/foodscan/analyze/`, formData, {
         headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${token}` },
@@ -107,6 +116,7 @@ const ScanFoodPage = () => {
     }
   };
 
+  // Recalculates nutrients live as the user changes the serving size
   const handleGramsChange = (newGrams) => {
     setGrams(newGrams);
     if (result) {
@@ -114,6 +124,7 @@ const ScanFoodPage = () => {
     }
   };
 
+  // Creates a meal entry in the Nutrition page with the scanned food's data
   const handleLogFood = async (mealType) => {
     if (!result) return;
     setLogging(true);
@@ -128,7 +139,7 @@ const ScanFoodPage = () => {
         carbs: result.nutrients.carbs,
         fiber: result.nutrients.fiber,
         fats: result.nutrients.fats,
-        notes: `${grams}g serving`,
+        notes: `${grams}g serving`, // Records the portion size in the meal notes
       });
       toast.success(`${result.food.name} logged to ${mealType}`);
       setShowMealPicker(false);
@@ -139,6 +150,7 @@ const ScanFoodPage = () => {
     }
   };
 
+  // Resets all state so the user can scan a different food
   const handleReset = () => {
     setImage(null);
     setImageFile(null);
@@ -156,7 +168,7 @@ const ScanFoodPage = () => {
       </div>
 
       <div className="grid gap-6">
-        {/* Upload Card */}
+        {/* Upload card — shows drag-drop area before image is selected, preview after */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           {!image ? (
             <div
@@ -171,10 +183,12 @@ const ScanFoodPage = () => {
               <p className="text-gray-700 font-semibold text-lg">Drop your food photo here</p>
               <p className="text-gray-400 text-sm mt-1">or click to browse</p>
               <p className="text-gray-300 text-xs mt-3">JPG, PNG supported</p>
+              {/* Hidden input — triggered programmatically when the drop zone is clicked */}
               <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleFileChange} />
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Image preview with an X button to remove it */}
               <div className="relative rounded-xl overflow-hidden bg-gray-50">
                 <img src={image} alt="Food to scan" className="w-full max-h-72 object-contain" />
                 <button onClick={handleReset} className="absolute top-3 right-3 w-8 h-8 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition">
@@ -182,6 +196,7 @@ const ScanFoodPage = () => {
                 </button>
               </div>
 
+              {/* Serving size input — changing this recalculates nutrients without re-scanning */}
               <div className="flex items-center gap-4">
                 <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Serving size</label>
                 <input
@@ -203,7 +218,7 @@ const ScanFoodPage = () => {
           )}
         </div>
 
-        {/* Error */}
+        {/* Error message */}
         {error && (
           <div className="flex items-start gap-3 bg-red-50 border border-red-100 text-red-700 px-4 py-3 rounded-xl">
             <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
@@ -211,7 +226,7 @@ const ScanFoodPage = () => {
           </div>
         )}
 
-        {/* Result */}
+        {/* Result card — shown after a successful scan */}
         {result && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center gap-3 mb-5">
@@ -223,6 +238,7 @@ const ScanFoodPage = () => {
                   <h2 className="text-xl font-bold text-gray-800">{result.food.name}</h2>
                   <CheckCircle2 className="w-5 h-5 text-teal-500" />
                 </div>
+                {/* Confidence badge — colour changes based on how certain the model is */}
                 {result.confidence != null && (
                   <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${
                     result.confidence >= 0.8 ? 'bg-green-100 text-green-700'
@@ -236,11 +252,13 @@ const ScanFoodPage = () => {
               </div>
             </div>
 
+            {/* Calorie highlight */}
             <div className="bg-gradient-to-r from-teal-500 to-cyan-500 rounded-xl p-4 mb-5 text-white flex items-center justify-between">
               <span className="font-medium">Calories</span>
               <span className="text-3xl font-bold">{result.nutrients.calories} <span className="text-lg font-normal">kcal</span></span>
             </div>
 
+            {/* Macro breakdown with progress bars */}
             <div className="space-y-4">
               <NutrientBar label="Protein"       value={result.nutrients.protein} unit="g" color="bg-teal-400"  max={60}  />
               <NutrientBar label="Carbohydrates" value={result.nutrients.carbs}   unit="g" color="bg-cyan-400"  max={100} />
@@ -248,6 +266,7 @@ const ScanFoodPage = () => {
               <NutrientBar label="Fiber"         value={result.nutrients.fiber}   unit="g" color="bg-green-400" max={30}  />
             </div>
 
+            {/* Log food section — first shows "Log Food" button, then meal type picker */}
             <div className="mt-6 space-y-3">
               {!showMealPicker ? (
                 <button
@@ -291,7 +310,7 @@ const ScanFoodPage = () => {
           </div>
         )}
 
-        {/* Supported Foods */}
+        {/* Reference list of supported foods shown at the bottom */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Supported Foods</p>

@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Apple, Activity, Moon, User, LogOut, Menu, X, ScanLine } from 'lucide-react';
 
+// Top navigation bar — sticky, shows different links depending on auth state
 const Navbar = ({ isAuthenticated, user, onLogout }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Highlights the nav link that matches the current URL
   const isActive = (path) => location.pathname === path;
 
   const handleLogout = () => {
@@ -17,6 +19,7 @@ const Navbar = ({ isAuthenticated, user, onLogout }) => {
     navigate('/');
   };
 
+  // Protected links are hidden from logged-out users
   const navLinks = [
     { path: isAuthenticated ? '/dashboard' : '/', label: 'Home', icon: Home },
     { path: '/nutrition', label: 'Nutrition', icon: Apple, protected: true },
@@ -37,7 +40,7 @@ const Navbar = ({ isAuthenticated, user, onLogout }) => {
             <span className="text-xl font-bold text-gray-800">WellTrack AI</span>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation — hidden on mobile */}
           <div className="hidden md:flex items-center space-x-1">
             {navLinks.map((link) => {
               if (link.protected && !isAuthenticated) return null;
@@ -72,6 +75,7 @@ const Navbar = ({ isAuthenticated, user, onLogout }) => {
                     {user?.full_name || user?.username || 'Profile'}
                   </span>
                 </Link>
+                {/* Opens a confirmation modal instead of logging out immediately */}
                 <button
                   onClick={() => setShowLogoutModal(true)}
                   className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
@@ -98,7 +102,7 @@ const Navbar = ({ isAuthenticated, user, onLogout }) => {
             )}
           </div>
 
-          {/* Mobile menu button */}
+          {/* Hamburger button — only visible on mobile */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
@@ -108,7 +112,7 @@ const Navbar = ({ isAuthenticated, user, onLogout }) => {
         </div>
       </div>
 
-      {/* Mobile Navigation */}
+      {/* Mobile Navigation dropdown */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-white border-t">
           <div className="px-4 py-3 space-y-2">
@@ -171,7 +175,8 @@ const Navbar = ({ isAuthenticated, user, onLogout }) => {
           </div>
         </div>
       )}
-      {/* Logout Confirmation Modal */}
+
+      {/* Logout confirmation modal — prevents accidental logout */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center animate-fadeIn">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowLogoutModal(false)} />
